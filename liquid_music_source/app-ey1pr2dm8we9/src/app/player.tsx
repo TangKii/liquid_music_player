@@ -309,7 +309,7 @@ export default function FullscreenPlayerScreen() {
                 {currentTrack?.title || '未选择歌曲'}
               </Text>
               <Text numberOfLines={1} style={styles.trackArtist}>
-                {currentTrack?.artist || '未知歌手'} • {currentTrack?.folderName || '精选'}
+                {currentTrack?.artist || '未知歌手'} • {currentTrack?.folderName || '收藏'}
               </Text>
             </View>
             <View style={styles.audioFormatBadge}>

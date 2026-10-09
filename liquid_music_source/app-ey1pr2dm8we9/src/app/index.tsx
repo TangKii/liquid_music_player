@@ -1,10 +1,18 @@
-import React, { useState } from 'react';
-import { View, Text, Pressable, FlatList, StyleSheet } from 'react-native';
+import React, { useState, useRef } from 'react';
+import {
+  View,
+  Text,
+  Pressable,
+  FlatList,
+  StyleSheet,
+  Animated,
+  Easing,
+  useWindowDimensions,
+} from 'react-native';
 import { useRouter, RelativePathString } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Folder, Sparkles, FolderPlus, Music2, RefreshCw } from 'lucide-react-native';
 import { usePlayer } from '@/context/PlayerContext';
-import { FEATURED_TRACKS } from '@/data/featuredSongs';
 import { LiquidGlassBackground } from '@/components/LiquidGlassBackground';
 import { LiquidGlassCard } from '@/components/LiquidGlassCard';
 import { SongListItem } from '@/components/SongListItem';
@@ -13,6 +21,8 @@ import { FloatingPlayerBar } from '@/components/FloatingPlayerBar';
 export default function HomeScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'featured' | 'local'>('featured');
+  const sliderX = useRef(new Animated.Value(0)).current;
+  const { width: screenW } = useWindowDimensions();
 
   const {
     currentTrack,
@@ -21,13 +31,25 @@ export default function HomeScreen() {
     localTracks,
     folders,
     rescanAllFolders,
+    favoriteTrackIds,
+    favoriteTracks,
+    toggleFavorite,
   } = usePlayer();
 
   const openFolderManager = () => {
     router.push('/folders' as RelativePathString);
   };
 
-  const currentDisplayTracks = activeTab === 'featured' ? FEATURED_TRACKS : localTracks;
+  const switchTab = (tab: 'featured' | 'local') => {
+    if (tab === activeTab) return;
+    setActiveTab(tab);
+    Animated.timing(sliderX, {
+      toValue: tab === 'local' ? -screenW : 0,
+      duration: 320,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  };
 
   return (
     <LiquidGlassBackground>
@@ -63,7 +85,7 @@ export default function HomeScreen() {
           <LiquidGlassCard variant="button" style={styles.tabCard}>
             <View style={styles.tabBarInner}>
               <Pressable
-                onPress={() => setActiveTab('featured')}
+                onPress={() => switchTab('featured')}
                 style={[
                   styles.tabItem,
                   activeTab === 'featured' && styles.tabItemActive,
@@ -79,12 +101,12 @@ export default function HomeScreen() {
                     activeTab === 'featured' && styles.tabItemTextActive,
                   ]}
                 >
-                  精选歌单 ({FEATURED_TRACKS.length})
+                  收藏列表 ({favoriteTracks.length})
                 </Text>
               </Pressable>
 
               <Pressable
-                onPress={() => setActiveTab('local')}
+                onPress={() => switchTab('local')}
                 style={[
                   styles.tabItem,
                   activeTab === 'local' && styles.tabItemActive,
@@ -100,68 +122,98 @@ export default function HomeScreen() {
                     activeTab === 'local' && styles.tabItemTextActive,
                   ]}
                 >
-                  本地音乐 ({localTracks.length})
+                  音乐列表 ({localTracks.length})
                 </Text>
               </Pressable>
             </View>
           </LiquidGlassCard>
         </View>
 
-        {/* If local tab and has tracks, show refresh status bar */}
-        {activeTab === 'local' && folders.length > 0 && (
-          <View style={styles.localSubHeader}>
-            <Text style={styles.localSubHeaderText}>
-              已关联 {folders.length} 个文件夹 • 共 {localTracks.length} 首歌曲
-            </Text>
-            <Pressable
-              onPress={rescanAllFolders}
-              hitSlop={8}
-              className="active:opacity-60"
-              style={styles.refreshIconBtn}
-            >
-              <RefreshCw size={14} color="#E5A93C" />
-            </Pressable>
-          </View>
-        )}
+        {/* Panels with slide transition */}
+        <View style={styles.panelViewport}>
+          <Animated.View
+            style={[
+              styles.panelsRow,
+              { width: screenW * 2, transform: [{ translateX: sliderX }] },
+            ]}
+          >
+            {/* 收藏列表 panel */}
+            <View style={[styles.panel, { width: screenW }]}>
+              <FlatList
+                data={favoriteTracks}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={styles.listContent}
+                showsVerticalScrollIndicator={false}
+                renderItem={({ item }) => (
+                  <SongListItem
+                    track={item}
+                    isActive={currentTrack?.id === item.id}
+                    isPlaying={isPlaying}
+                    onPress={() => playTrack(item, favoriteTracks)}
+                    isFavorite={!item.isLocal || favoriteTrackIds.includes(item.id)}
+                    onToggleFavorite={item.isLocal ? toggleFavorite : undefined}
+                  />
+                )}
+              />
+            </View>
 
-        {/* Songs List */}
-        <FlatList
-          data={currentDisplayTracks}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <SongListItem
-              track={item}
-              isActive={currentTrack?.id === item.id}
-              isPlaying={isPlaying}
-              onPress={() => playTrack(item, currentDisplayTracks)}
-            />
-          )}
-          ListEmptyComponent={
-            activeTab === 'local' ? (
-              <View style={styles.emptyContainer}>
-                <LiquidGlassCard style={styles.emptyCard}>
-                  <View style={styles.emptyIconCircle}>
-                    <FolderPlus size={36} color="#E5A93C" />
-                  </View>
-                  <Text style={styles.emptyTitle}>暂无本地音频</Text>
-                  <Text style={styles.emptyDesc}>
-                    添加手机中的音乐文件夹，系统将自动递归扫描并导入所有音频文件与同名歌词。
+            {/* 音乐列表 panel */}
+            <View style={[styles.panel, { width: screenW }]}>
+              {folders.length > 0 && (
+                <View style={styles.localSubHeader}>
+                  <Text style={styles.localSubHeaderText}>
+                    已关联 {folders.length} 个文件夹 • 共 {localTracks.length} 首歌曲
                   </Text>
                   <Pressable
-                    onPress={openFolderManager}
-                    className="active:opacity-80"
-                    style={styles.emptyAddBtn}
+                    onPress={rescanAllFolders}
+                    hitSlop={8}
+                    className="active:opacity-60"
+                    style={styles.refreshIconBtn}
                   >
-                    <FolderPlus size={18} color="#121212" />
-                    <Text style={styles.emptyAddBtnText}>添加音乐文件夹</Text>
+                    <RefreshCw size={14} color="#E5A93C" />
                   </Pressable>
-                </LiquidGlassCard>
-              </View>
-            ) : null
-          }
-        />
+                </View>
+              )}
+              <FlatList
+                data={localTracks}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={styles.listContent}
+                showsVerticalScrollIndicator={false}
+                renderItem={({ item }) => (
+                  <SongListItem
+                    track={item}
+                    isActive={currentTrack?.id === item.id}
+                    isPlaying={isPlaying}
+                    onPress={() => playTrack(item, localTracks)}
+                    isFavorite={favoriteTrackIds.includes(item.id)}
+                    onToggleFavorite={toggleFavorite}
+                  />
+                )}
+                ListEmptyComponent={
+                  <View style={styles.emptyContainer}>
+                    <LiquidGlassCard style={styles.emptyCard}>
+                      <View style={styles.emptyIconCircle}>
+                        <FolderPlus size={36} color="#E5A93C" />
+                      </View>
+                      <Text style={styles.emptyTitle}>暂无本地音频</Text>
+                      <Text style={styles.emptyDesc}>
+                        添加手机中的音乐文件夹，系统将自动递归扫描并导入所有音频文件与同名歌词。
+                      </Text>
+                      <Pressable
+                        onPress={openFolderManager}
+                        className="active:opacity-80"
+                        style={styles.emptyAddBtn}
+                      >
+                        <FolderPlus size={18} color="#121212" />
+                        <Text style={styles.emptyAddBtnText}>添加音乐文件夹</Text>
+                      </Pressable>
+                    </LiquidGlassCard>
+                  </View>
+                }
+              />
+            </View>
+          </Animated.View>
+        </View>
 
         {/* Bottom Floating Player Bar */}
         <FloatingPlayerBar />
@@ -294,6 +346,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 4,
     paddingBottom: 110,
+  },
+  panelViewport: {
+    flex: 1,
+    overflow: 'hidden',
+  },
+  panelsRow: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  panel: {
+    flex: 1,
   },
   emptyContainer: {
     paddingTop: 36,

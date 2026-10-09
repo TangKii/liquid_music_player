@@ -1,6 +1,6 @@
 # 液态音乐播放器（Liquid Music Player）
 
-一款采用 **iOS 26 液态玻璃（Liquid Glass）视觉主题**的移动端音乐播放器，基于 Expo / React Native 构建。支持精选歌单在线试听、**多本地音乐文件夹递归扫描导入**、**同名 `.lrc` 歌词同步滚动高亮**，以及底部悬浮播放栏与全屏沉浸式播放页（旋转黑胶唱片效果）。
+一款采用 **iOS 26 液态玻璃（Liquid Glass）视觉主题**的移动端音乐播放器，基于 Expo / React Native 构建。支持收藏列表在线试听与歌曲收藏、**多本地音乐文件夹递归扫描导入**、**同名 `.lrc` 歌词同步滚动高亮**，以及底部悬浮播放栏与全屏沉浸式播放页（旋转黑胶唱片效果）。
 
 > 源码由秒哒（Miaoda）平台导出，包内附完整 git 仓库。
 
@@ -8,10 +8,11 @@
 
 ## 功能特性
 
-- 🎵 **精选歌单**：内置多首歌曲（封面、歌名、歌手、时长），点击即播（示例音频来自 SoundHelix 公开样本）
-- 📁 **多本地音乐文件夹**：系统文件夹选择器同时添加多个文件夹，递归扫描子目录中的 `mp3 / wav / flac / m4a / aac / ogg` 音频加入播放列表；支持查看 / 移除已选文件夹
+- ❤️ **收藏列表**：内置云端精选歌曲（预置红心）并支持收藏 / 取消收藏本地歌曲，已收藏歌曲以红色爱心标记并聚合到收藏列表（含页签滑动切换动画）
+- 📁 **音乐列表**：系统文件夹选择器同时添加多个文件夹，递归扫描子目录中的 `mp3 / wav / flac / m4a / aac / ogg` 音频加入播放列表；支持查看 / 移除已选文件夹
 - 🎤 **歌词同步显示**：播放时自动在歌曲同目录查找同名 `.lrc` 文件并解析，随播放进度毫秒级同步滚动、高亮当前句；无歌词文件时降级为内置歌词
 - 🎛️ **完整播放控制**：播放 / 暂停、上一首 / 下一首、进度条拖动跳转、当前时间 / 总时长
+- 📱 **后台播放 + 灵动岛**：切后台或锁屏后音乐持续播放，支持锁屏 / 控制中心 / iOS 灵动岛显示歌曲信息与控制按钮
 - 💎 **液态玻璃视觉**：深色渐变动态背景、半透明玻璃卡片与内高光描边、液态玻璃圆形控制键、全屏旋转唱片页
 
 ## 技术栈
@@ -83,7 +84,7 @@ cd android && ./gradlew assembleRelease
 └── src/
     ├── app/                  # expo-router 页面
     │   ├── _layout.tsx       #   根布局（主题、播放状态提供）
-    │   ├── index.tsx         #   主页：精选歌单
+    │   ├── index.tsx         #   主页：收藏列表 / 音乐列表（滑动切换 + 收藏）
     │   ├── folders.tsx       #   本地文件夹：多文件夹管理与扫描
     │   └── player.tsx        #   全屏播放页（旋转唱片 + 歌词）
     ├── components/           # UI 组件
@@ -93,7 +94,7 @@ cd android && ./gradlew assembleRelease
     │   ├── SongListItem.tsx          # 歌单项
     │   └── ui/               # shadcn 风格基础组件（@rn-primitives）
     ├── context/
-    │   └── PlayerContext.tsx # 全局播放器状态（播放/进度/歌词联动）
+    │   └── PlayerContext.tsx # 全局播放器状态（播放/进度/歌词联动/收藏/后台锁屏）
     ├── data/
     │   └── featuredSongs.ts  # 内置精选歌单数据
     ├── lib/                  # 主题与工具（theme.ts / utils.ts）
@@ -108,8 +109,9 @@ cd android && ./gradlew assembleRelease
 
 - **环境变量**：`.env` 中仅 `EXPO_PUBLIC_APP_ID=app-ey1pr2dm8we9`，本地调试可直接沿用；修改后需重启 `expo start` 生效
 - **包名 / 应用 ID**：`com.miaoda.liquidmusic`（见 `app.json`，iOS / Android 双侧配置）
-- **Android 权限**（已预置）：`READ_MEDIA_AUDIO`（Android 13+ 读音频）、`READ_EXTERNAL_STORAGE`（旧版本兼容）、`MODIFY_AUDIO_SETTINGS`
+- **Android 权限**（已预置）：`READ_MEDIA_AUDIO`（Android 13+ 读音频）、`READ_EXTERNAL_STORAGE`（旧版本兼容）、`MODIFY_AUDIO_SETTINGS`（后台播放前台服务相关权限由 expo-audio 配置插件自动注入）
 - **iOS 后台音频**：`infoPlist.UIBackgroundModes: ["audio"]` 已开启
+- **后台播放 / 灵动岛**：`app.json` 中 expo-audio 以数组形式配置 `enableBackgroundPlayback: true`；代码在播放时调用 `player.setActiveForLockScreen(true, metadata)` 挂载锁屏 / 灵动岛控制，Android 13+ 会自动请求通知权限
 
 ## 常见问题
 

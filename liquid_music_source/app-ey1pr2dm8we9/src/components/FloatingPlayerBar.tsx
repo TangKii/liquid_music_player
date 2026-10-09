@@ -81,7 +81,7 @@ export const FloatingPlayerBar: React.FC = () => {
                 {currentTrack.title}
               </Text>
               <Text numberOfLines={1} style={styles.artistText}>
-                {currentTrack.artist} • {currentTrack.folderName || '精选'}
+                {currentTrack.artist} • {currentTrack.folderName || '收藏'}
               </Text>
             </View>
 

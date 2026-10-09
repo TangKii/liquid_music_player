@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
-import { Play, Disc, Music, BarChart2 } from 'lucide-react-native';
+import { Play, Disc, Music, BarChart2, Heart } from 'lucide-react-native';
 import { Track } from '@/types/music';
 
 interface SongListItemProps {
@@ -9,13 +9,19 @@ interface SongListItemProps {
   isActive: boolean;
   isPlaying: boolean;
   onPress: () => void;
+  isFavorite?: boolean;
+  onToggleFavorite?: (trackId: string) => void;
 }
+
+const FAVORITE_RED = '#FF4D6D';
 
 export const SongListItem: React.FC<SongListItemProps> = ({
   track,
   isActive,
   isPlaying,
   onPress,
+  isFavorite = false,
+  onToggleFavorite,
 }) => {
   const formatDuration = (sec: number) => {
     if (!sec || sec <= 0) return '--:--';
@@ -73,22 +79,47 @@ export const SongListItem: React.FC<SongListItemProps> = ({
         </View>
       </View>
 
-      {/* Duration and Play Action */}
+      {/* Duration, Favorite and Play Action */}
       <View style={styles.rightCol}>
         <Text style={styles.duration}>
           {formatDuration(track.duration)}
         </Text>
-        <View
-          style={[
-            styles.playCircle,
-            isActive && isPlaying ? styles.playCircleActive : styles.playCircleNormal,
-          ]}
-        >
-          <Play
-            size={12}
-            color={isActive ? '#121212' : '#9E9EB2'}
-            style={{ marginLeft: 1 }}
-          />
+        <View style={styles.rightActionRow}>
+          {onToggleFavorite ? (
+            <Pressable
+              onPress={() => onToggleFavorite(track.id)}
+              hitSlop={8}
+              className="active:scale-90"
+              style={[
+                styles.favoriteBtn,
+                isFavorite && styles.favoriteBtnActive,
+              ]}
+            >
+              <Heart
+                size={16}
+                color={isFavorite ? FAVORITE_RED : '#9E9EB2'}
+                fill={isFavorite ? FAVORITE_RED : 'none'}
+                strokeWidth={isFavorite ? 2.2 : 1.8}
+              />
+            </Pressable>
+          ) : isFavorite ? (
+            // 只读红心（如云端精选预置收藏，不可取消）
+            <View style={[styles.favoriteBtn, styles.favoriteBtnActive]}>
+              <Heart size={16} color={FAVORITE_RED} fill={FAVORITE_RED} strokeWidth={2.2} />
+            </View>
+          ) : null}
+          <View
+            style={[
+              styles.playCircle,
+              isActive && isPlaying ? styles.playCircleActive : styles.playCircleNormal,
+            ]}
+          >
+            <Play
+              size={12}
+              color={isActive ? '#121212' : '#9E9EB2'}
+              style={{ marginLeft: 1 }}
+            />
+          </View>
         </View>
       </View>
     </Pressable>
@@ -189,6 +220,21 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     marginLeft: 10,
     gap: 6,
+  },
+  rightActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  favoriteBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  favoriteBtnActive: {
+    backgroundColor: 'rgba(255, 77, 109, 0.12)',
   },
   duration: {
     color: '#707085',

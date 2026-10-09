@@ -42,7 +42,15 @@
       "expo-font",
       "expo-system-ui",
       "expo-image",
-      "expo-audio",
+      [
+        "expo-audio",
+        {
+          "enableBackgroundPlayback": true,
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundRecording": false
+        }
+      ],
       "expo-file-system",
       "expo-document-picker",
       [

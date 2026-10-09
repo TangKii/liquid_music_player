@@ -1,5 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { createAudioPlayer, setAudioModeAsync, AudioPlayer, AudioStatus } from 'expo-audio';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import {
+  createAudioPlayer,
+  setAudioModeAsync,
+  requestNotificationPermissionsAsync,
+  AudioPlayer,
+  AudioStatus,
+} from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 import { Track, FolderRecord, LyricLine, RepeatMode } from '@/types/music';
 import { FEATURED_TRACKS } from '@/data/featuredSongs';
@@ -12,6 +18,8 @@ import {
   scanFolder,
   pickDirectorySaf,
   pickAudioFiles,
+  getSavedFavoriteIds,
+  saveFavoriteIds,
 } from '@/utils/fileScanner';
 
 interface PlayerContextType {
@@ -33,6 +41,11 @@ interface PlayerContextType {
   folders: FolderRecord[];
   localTracks: Track[];
   isScanning: boolean;
+
+  // Favorites
+  favoriteTrackIds: string[];
+  favoriteTracks: Track[];
+  toggleFavorite: (trackId: string) => void;
 
   // Actions
   playTrack: (track: Track, newQueue?: Track[]) => Promise<void>;
@@ -69,6 +82,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [localTracks, setLocalTracks] = useState<Track[]>([]);
   const [isScanning, setIsScanning] = useState<boolean>(false);
 
+  const [favoriteTrackIds, setFavoriteTrackIds] = useState<string[]>([]);
+
   const playerRef = useRef<AudioPlayer | null>(null);
   const statusSubscriptionRef = useRef<{ remove: () => void } | null>(null);
   const repeatModeRef = useRef<RepeatMode>(repeatMode);
@@ -100,6 +115,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setFolders(savedF);
       const savedT = await getSavedLocalTracks();
       setLocalTracks(savedT);
+      const savedFav = await getSavedFavoriteIds();
+      // 收藏列表 = 云端精选（预置红心）+ 本地已收藏；云端精选不与收藏状态解耦，避免取消后无法找回
+      setFavoriteTrackIds(savedFav ?? []);
+      if (savedFav === null) {
+        saveFavoriteIds([]);
+      }
     })();
   }, []);
 
@@ -251,6 +272,25 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         updateInterval: 250,
       });
       playerRef.current = player;
+
+      // Enable lock screen / Dynamic Island (灵动岛) controls with metadata
+      try {
+        player.setActiveForLockScreen(true, {
+          title: track.title,
+          artist: track.artist,
+          albumTitle: track.album || track.folderName,
+          artworkUrl: track.coverUri,
+        });
+      } catch (err) {
+        console.warn('Failed to activate lock screen controls:', err);
+      }
+
+      // Android 13+ needs notification permission to show media controls
+      try {
+        await requestNotificationPermissionsAsync();
+      } catch (err) {
+        // ignore, only relevant on Android
+      }
 
       // Listen to status updates
       const sub = player.addListener('playbackStatusUpdate', (status: AudioStatus) => {
@@ -507,6 +547,26 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [folders, localTracks]);
 
+  /**
+   * Toggle favorite status for a track
+   */
+  const toggleFavorite = useCallback((trackId: string) => {
+    setFavoriteTrackIds((prev) => {
+      const next = prev.includes(trackId)
+        ? prev.filter((id) => id !== trackId)
+        : [...prev, trackId];
+      saveFavoriteIds(next);
+      return next;
+    });
+  }, []);
+
+  // 收藏列表 = 云端精选（固定展示，预置红心） + 本地已收藏歌曲
+  const favoriteTracks = useMemo<Track[]>(() => {
+    const favSet = new Set(favoriteTrackIds);
+    const localFav = localTracks.filter((t) => favSet.has(t.id));
+    return [...FEATURED_TRACKS, ...localFav];
+  }, [favoriteTrackIds, localTracks]);
+
   return (
     <PlayerContext.Provider
       value={{
@@ -523,6 +583,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         folders,
         localTracks,
         isScanning,
+        favoriteTrackIds,
+        favoriteTracks,
+        toggleFavorite,
         playTrack,
         togglePlayPause,
         seekTo,

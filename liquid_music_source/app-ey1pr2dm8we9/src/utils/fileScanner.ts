@@ -5,6 +5,7 @@ import { Track, FolderRecord } from '@/types/music';
 const { StorageAccessFramework } = FileSystem;
 
 const STORAGE_FILE = `${FileSystem.documentDirectory || ''}liquid_music_data.json`;
+const FAVORITES_FILE = `${FileSystem.documentDirectory || ''}liquid_music_favorites.json`;
 
 interface StoredData {
   folders: FolderRecord[];
@@ -74,6 +75,29 @@ export async function getSavedLocalTracks(): Promise<Track[]> {
 
 export async function saveLocalTracks(tracks: Track[]): Promise<void> {
   await writeStoredData({ tracks });
+}
+
+export async function getSavedFavoriteIds(): Promise<string[] | null> {
+  try {
+    const info = await FileSystem.getInfoAsync(FAVORITES_FILE);
+    if (!info.exists) {
+      return null;
+    }
+    const content = await FileSystem.readAsStringAsync(FAVORITES_FILE);
+    const parsed = JSON.parse(content);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    console.warn('Failed reading favorite ids:', err);
+    return null;
+  }
+}
+
+export async function saveFavoriteIds(ids: string[]): Promise<void> {
+  try {
+    await FileSystem.writeAsStringAsync(FAVORITES_FILE, JSON.stringify(ids));
+  } catch (err) {
+    console.warn('Failed writing favorite ids:', err);
+  }
 }
 
 async function tryReadCompanionLrc(audioUri: string, baseName: string): Promise<string | undefined> {
@@ -160,7 +184,7 @@ async function scanSafDirectoryRecursive(
         tracks.push({
           id: `local-${uri}`,
           title: cleanName,
-          artist: '本地音乐',
+          artist: '本地音频',
           album: folderName,
           duration: 0,
           uri,

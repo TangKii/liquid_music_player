@@ -71,7 +71,7 @@ export default function FoldersScreen() {
           >
             <ChevronLeft size={24} color="#EDEDED" />
           </Pressable>
-          <Text style={styles.headerTitle}>本地音乐文件夹</Text>
+          <Text style={styles.headerTitle}>音乐文件夹</Text>
           <Pressable
             onPress={rescanAllFolders}
             disabled={isScanning}
@@ -183,7 +183,7 @@ export default function FoldersScreen() {
             )}
             ListEmptyComponent={
               <View style={styles.emptyList}>
-                <Text style={styles.emptyListTitle}>尚未添加任何本地音乐文件夹</Text>
+                <Text style={styles.emptyListTitle}>尚未添加任何音乐文件夹</Text>
                 <Text style={styles.emptyListDesc}>
                   点击上方「指定音乐文件夹」选择手机中的存储目录（如 Music、Download 等），我们将自动提取音乐。
                 </Text>
